@@ -34,9 +34,33 @@ class AnonymousTwitteror(Service):
     implements(TwitterorInterface)
 
     def query(self, url, method='GET', **kwargs):
-        dfr = getPage('?'.join([url, urllib.urlencode(kwargs, True)]), method=method)
+        dfr = getPage('?'.join([url, urllib.urlencode(kwargs, True)]),
+                method=method)
         dfr.addCallback(_jsonify)
         return dfr
+
+class Twitteror(Service):
+    implements(TwitterorInterface)
+
+    def __init__(self, user, password):
+        self.user = user
+        self.password = password
+
+    def startService(self):
+        self.headers = {
+            "Authorization": "Basic %s" % ("%s:%s" % (self.user,
+                    self.password)).encode("base64").strip(),
+            "User-Agent": "Twitteror/0.1",
+        }
+        return self.query("http://twitter.com/account/verify_credentials.json")
+ 
+    def query(self, url, method='GET', **kwargs):
+        dfr = getPage('?'.join([url, urllib.urlencode(kwargs, True)]),
+                method=method, headers=self.headers)
+        dfr.addCallback(_jsonify)
+        return dfr
+
+
 
 class Querier(object):
 
@@ -144,4 +168,26 @@ class Statuses(Querier, Service):
     def retweets(self, tweet_id, count=None):
         url = "http://twitter.com/statuses/retweets/%s.json" % tweet_id
         return self._query(url, count=count)
+
+class Users(Querier, Service):
+    """
+    Service to receive and manage User Information.
+    """
+
+    def show(self, user_id): 
+        url = "http://twitter.com/users/show.json"
+        return self._query(url, user_id=user_id)
+
+    def search(self, query, per_page=None, page=None): 
+        url = "http://twitter.com/users/search.json"
+        return self._query(url, q=query, per_page=per_page, page=page)
+
+    def followers(self, user_id, cursor=None):
+        url = "http://twitter.com/statuses/followers.json"
+        return self._query(url, user_id=user_id, count=count)
+
+    def friends(self, user_id, cursor=None):
+        url = "http://twitter.com/statuses/friends.json"
+        return self._query(url, user_id=user_id, count=count)
+
 
